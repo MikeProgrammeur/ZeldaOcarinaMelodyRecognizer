@@ -1,0 +1,3 @@
+Unfortunately the .wav files are simply .m4a files converted using free online converter.
+I forgot to modify the parameters, before recording, and I am too lazy to redo the 12 melodies...
+I know this introduces conversion artefacts and I hope this does not perturb the way I tuned my algorithms.
