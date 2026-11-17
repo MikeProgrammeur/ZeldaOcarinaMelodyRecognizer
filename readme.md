@@ -21,7 +21,11 @@ Here is the ocarina cheat sheet :
   <em>Figure : Tabs for the 12 ocarina melodies from Zelda Ocarina of Time.</em>
 </p>
 
+## Python requirements
+TODO
 
+## Input configuration
+TODO
 
 ## Research and development
 ### Algorithm sketching

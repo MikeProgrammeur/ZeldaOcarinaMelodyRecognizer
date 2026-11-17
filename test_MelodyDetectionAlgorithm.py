@@ -4,7 +4,7 @@ import numpy as np
 # Audio
 from scipy.io import wavfile
 
-import songDictionaries
+import utils.songDictionaries as songDictionaries
 from utils.toneSequenceEstimation import estimate_melody_diff #(signal: np.ndarray, sample_rate: int, target_rate: int = TARGET_RATE, nperseg: int = STFT_NPERSEG, noverlap: int | None = STFT_NOVERLAP, pelt_model: str = PELT_MODEL, pelt_min_size: int = PELT_MIN_SIZE, pelt_jump: int = PELT_JUMP, pelt_penalty: float = PELT_PENALTY)
 from utils.sequenceMatchMetric import match_sequence #(measured, target, loss="mae", huber_delta=1.0)
 

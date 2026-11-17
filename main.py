@@ -6,9 +6,18 @@ import time
 import sounddevice as sd
 from sounddevice import CallbackFlags
 
-import songDictionaries
+import utils.songDictionaries as songDictionaries
 from utils.toneSequenceEstimation import estimate_melody_diff #(signal: np.ndarray, sample_rate: int, target_rate: int = TARGET_RATE, nperseg: int = STFT_NPERSEG, noverlap: int | None = STFT_NOVERLAP, pelt_model: str = PELT_MODEL, pelt_min_size: int = PELT_MIN_SIZE, pelt_jump: int = PELT_JUMP, pelt_penalty: float = PELT_PENALTY)
 from utils.sequenceMatchMetric import identify_melody #(measured, target_dic, detection_threshold, loss="mae", huber_delta=1.0):
+from utils.keyboardInterraction import read_confirmsong_key, init_button_to_key_dict, waitForKey, simulateSong, init_song_to_key_dict
+
+# Initializing the key for user interraction with the script
+confirm_song_key = read_confirmsong_key()
+button_to_key_dict = init_button_to_key_dict()
+if confirm_song_key is None or button_to_key_dict is None:
+    raise ValueError('The JSON is not correctly configured it must look like : {"A": "key1", "Up": "key2", "Right": "key3", "Down": "key4", "Left": "key5", "ConfirmSong": "key6"}')
+song_to_key_dict = init_song_to_key_dict(songDictionaries.song_dict_button, button_to_key_dict)
+
 
 SAMPLE_RATE = 16000 # Sampling rate
 CHUNK_DURATION = 2 # Duration of one chunk in seconds, the program is an infinite loop, consisting of recording a chunk, put it in a finite sized queue, and restart
@@ -124,7 +133,7 @@ try:
                         sample_rate=SAMPLE_RATE,
                         return_debug=True
                     )
-                    print(estimated_pitch_midi_diff)
+                    #print(estimated_pitch_midi_diff)
                 else:
                     estimated_pitch_midi_diff = estimate_melody_diff(
                         signal=np.concatenate(audio_buffer_queue),
@@ -134,6 +143,17 @@ try:
                 if identified_melody is not None and ((time.time()-time_song_recognized)>3):
                     print(identified_melody)
                     time_song_recognized = time.time()
+                    # A song is recognized we launch the song confirmation routine :
+                    print(f"Waiting for confirmation : you have 5 seconds to press {confirm_song_key}")
+                    confirmation_key_pressed = waitForKey(confirm_song_key, 5000) 
+                    if confirmation_key_pressed: # we simulate the song
+                        try:
+                            simulateSong(identified_melody, song_to_key_dict)
+                        except:
+                            print(f"The song {identified_melody} can not be played")
+                    else :
+                        print("Time limit reached, song playing will be cancelled")
+                        
                     
                 if DEBUG:
                     update_plot(np.concatenate(audio_buffer_queue), SAMPLE_RATE, debug)
