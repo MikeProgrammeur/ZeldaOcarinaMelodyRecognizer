@@ -12,13 +12,13 @@ def midi_array_conversion(x : np.ndarray):
 def ReLU(x : np.ndarray):
     return x * (x > 0)
 
-SILENCE_DETECION_SMOOTHING_WINDOWS = 10 # ms
+SILENCE_DETECTION_SMOOTHING_WINDOWS = 10 # ms
 SILENCE_DETECTION_REFERENCE_PERCENTILE = 99 # between 0 and 100
 SILENCE_DETECTION_THRESHOLD_FACTOR = 0.1 # fraction of the threshold, 0.1 for 10% is appropriate
 
 def removeSilences(x : np.ndarray, fs : int) -> np.ndarray:
     x_res = x.copy()
-    window_size = int(SILENCE_DETECION_SMOOTHING_WINDOWS * fs / 1000) # ms to s conversion
+    window_size = int(SILENCE_DETECTION_SMOOTHING_WINDOWS * fs / 1000) # ms to s conversion
     envelope = np.convolve(a=np.abs(x.astype(float)), v=np.ones(window_size)/window_size, mode='same')
 
     # Estimate the reference amplitude and define the silence threshold
@@ -31,6 +31,49 @@ def removeSilences(x : np.ndarray, fs : int) -> np.ndarray:
     # Remove silent samples for testing
     x_res[silence_mask] = 0
     return x_res
+
+CLEAN_MAGNITUDE_RATIO_THRESHOLD = 50
+CLEAN_MAGNITUDE_FREQ_RANGE = [300,4000]
+
+def cleanMagnitude(
+    magnitude: np.ndarray,
+    frequencies: np.ndarray,
+    freq_range: tuple[float, float] = CLEAN_MAGNITUDE_FREQ_RANGE,
+    ratio_threshold: float = 10.0,
+    min_peak: float = 1e-3,
+    eps: float = 1e-12
+) -> np.ndarray:
+    """ Remove STFT frames that do not exhibit sufficient spectral concentration. """
+    magnitude_clean = magnitude.copy()
+
+    # Select frequency range
+    if freq_range is None:
+        freq_mask = np.ones(len(frequencies), dtype=bool)
+    else:
+        f_min, f_max = freq_range
+        freq_mask = (frequencies >= f_min) & (frequencies <= f_max)
+
+    if not np.any(freq_mask):
+        raise ValueError("The selected frequency range contains no STFT bins.")
+
+    selected_magnitude = magnitude[freq_mask, :]
+
+    # Spectral peak and median for each time frame
+    spectral_max = np.max(selected_magnitude, axis=0)
+    spectral_median = np.median(selected_magnitude, axis=0)
+
+    # Spectral concentration
+    spectral_ratio = spectral_max / (spectral_median + eps)
+
+    # Keep only frames with sufficient energy and spectral concentration
+    active_frames = (
+        (spectral_max > min_peak) &
+        (spectral_ratio > ratio_threshold)
+    )
+
+    magnitude_clean[:, ~active_frames] = 0
+
+    return magnitude_clean
 
 # Resampling
 TARGET_RATE = 16000  # Target sampling rate in Hz, 8 kHz is enough because no one will sing higher than 8kHz
@@ -89,15 +132,24 @@ def estimate_melody_diff(
     )
     magnitude = np.abs(Zxx)
     
-    # [5] ESTIMATE PITCH, MIDI CONVERSION, SMOOTHING, using median filtering
-    dominant_freq = f[np.argmax(np.abs(Zxx), axis=0)]
+    # [5] Clean the magnitude using a spectral flatness estimator to remove residual noise, 
+    magnitude_clean = cleanMagnitude(
+        magnitude,
+        f,
+        freq_range=(300, 3000),
+        ratio_threshold=10.0,
+        min_peak=1e-3
+    )
+    
+    # [6] ESTIMATE PITCH, MIDI CONVERSION, SMOOTHING, using median filtering
+    dominant_freq = f[np.argmax(magnitude_clean, axis=0)]
     dominant_freq_midi = ReLU(midi_array_conversion(dominant_freq))
     
     raw_midi = dominant_freq_midi.copy()
     dominant_freq_midi = median_filter(raw_midi, size=5)
 
-    # [6] TONE SEQUENCE ESTIMATION 
-    # [6.1] FIND BREAKPOINTS
+    # [7] TONE SEQUENCE ESTIMATION 
+    # [7.1] FIND BREAKPOINTS
     algo = rpt.Pelt(
         model=pelt_model,
         min_size=pelt_min_size,
@@ -112,7 +164,7 @@ def estimate_melody_diff(
         for start, end in zip([0] + breakpoints[:-1], breakpoints):
             segment_midi[start:end] = np.mean(dominant_freq_midi[start:end])
 
-    # # [6.2] COMPUTE EACH TONE BETWEEN TWO BREAKPOINTS
+    # # [7.2] COMPUTE EACH TONE BETWEEN TWO BREAKPOINTS
     notes = np.array([
     np.mean(dominant_freq_midi[start:end])
         if np.mean(dominant_freq_midi[start:end]) > MIDI_TONE_SILENCE_THRESHOLD
@@ -123,7 +175,7 @@ def estimate_melody_diff(
     ])
     
     
-    # [7] COMPUTE MIDI TONE DIFF, diff ensure the song is recognized even if there is a constant shift by any number of tones
+    # [8] COMPUTE MIDI TONE DIFF, diff ensure the song is recognized even if there is a constant shift by any number of tones
     notes = notes[(notes>50)] # we remove silences and very low tones, but we keep long silences, labeled as 1000
     midi_diff = np.diff(notes)
 

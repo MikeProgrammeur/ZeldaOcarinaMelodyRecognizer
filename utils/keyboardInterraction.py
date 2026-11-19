@@ -1,4 +1,4 @@
-from pyautogui import press, typewrite #Source - https://stackoverflow.com/a/43567521, Posted by CornSmith
+from pyautogui import press, typewrite, keyUp, keyDown #Source - https://stackoverflow.com/a/43567521, Posted by CornSmith
 
 from typing import Dict
 
@@ -55,8 +55,12 @@ def simulateSong(song_name : str, song_to_key_dict : Dict, print_log : bool = Fa
     if print_log:
         print(f"playing the song {song_name}")
     sequence = song_to_key_dict.get(song_name)
-    if sequence is not None:
-        typewrite(sequence)
+    if sequence is not None: # cont not use typepress because it is too fast for the emulator
+        for key in sequence:
+            keyDown(key)
+            time.sleep(0.2)  # Hold the button for 200 ms
+            keyUp(key)
+            time.sleep(0.2)  # Wait 200 ms before next note
     else:
         print(f"Song '{song_name}' not recognized.")
 

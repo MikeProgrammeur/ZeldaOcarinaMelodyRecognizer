@@ -18,13 +18,12 @@ if confirm_song_key is None or button_to_key_dict is None:
     raise ValueError('The JSON is not correctly configured it must look like : {"A": "key1", "Up": "key2", "Right": "key3", "Down": "key4", "Left": "key5", "ConfirmSong": "key6"}')
 song_to_key_dict = init_song_to_key_dict(songDictionaries.song_dict_button, button_to_key_dict)
 
+CONST_DETECTION_THRESHOLD = 1.5
 
 SAMPLE_RATE = 16000 # Sampling rate
 CHUNK_DURATION = 2 # Duration of one chunk in seconds, the program is an infinite loop, consisting of recording a chunk, put it in a finite sized queue, and restart
 CHUNK_DURATION_MS = int(CHUNK_DURATION*1000)
 AUDIO_BUFFER_SIZE = 3
-
-MELODY_DETECTION_THRESHOLD = 2
 
 DEBUG = True
 
@@ -33,21 +32,22 @@ FRENCH = True
 
 import matplotlib.pyplot as plt
 
-plt.ion()
+if DEBUG :
+    plt.ion()
 
-fig, axes = plt.subplots(3, 1, figsize=(14, 10))
+    fig, axes = plt.subplots(3, 1, figsize=(14, 10))
 
-line_original, = axes[0].plot([], [])
-line_clean, = axes[1].plot([], [])
-line_pitch, = axes[2].plot([], [])
-line_filtered, = axes[2].plot([], [])
+    line_original, = axes[0].plot([], [])
+    line_clean, = axes[1].plot([], [])
+    line_pitch, = axes[2].plot([], [])
+    line_filtered, = axes[2].plot([], [])
 
-axes[0].set_title("Original signal")
-axes[1].set_title("Signal after silence removal")
-axes[2].set_title("Estimated pitch")
+    axes[0].set_title("Original signal")
+    axes[1].set_title("Signal after silence removal")
+    axes[2].set_title("Estimated pitch")
 
-plt.tight_layout()
-plt.show(block=False)
+    plt.tight_layout() 
+    plt.show(block=False)
 
 def update_plot(signal_original, sample_rate, debug):
 
@@ -111,8 +111,6 @@ if FRENCH:
 else :
     print("Start recording... Press Ctrl+C to stop")
 
-time_song_recognized = time.time()-10 # this variable is used so two song can not be recognized too close in time
-
 try:
     with sd.InputStream(
         samplerate=SAMPLE_RATE,
@@ -123,7 +121,6 @@ try:
     ):
         while True:
             computation_start = time.time()
-            
             if audio_buffer_queue:
                 print("New 2s chunk")
                 # estimated_pitch_midi_diff = estimate_melody_diff(signal=np.concatenate(audio_buffer_queue), sample_rate=SAMPLE_RATE)
@@ -139,24 +136,28 @@ try:
                         signal=np.concatenate(audio_buffer_queue),
                         sample_rate=SAMPLE_RATE
                     )
-                identified_melody = identify_melody(estimated_pitch_midi_diff, song_dict_note_midi_diff_local, MELODY_DETECTION_THRESHOLD)
-                if identified_melody is not None and ((time.time()-time_song_recognized)>3):
-                    print(identified_melody)
-                    time_song_recognized = time.time()
+                identified_melody_name, identified_melody_score = identify_melody(estimated_pitch_midi_diff, song_dict_note_midi_diff_local, CONST_DETECTION_THRESHOLD)
+                
+                if identified_melody_name is not None : # A song has been recognized
+                    print(f"The melody {identified_melody_name} has been recognized with an error of {identified_melody_score}")
                     # A song is recognized we launch the song confirmation routine :
-                    print(f"Waiting for confirmation : you have 5 seconds to press {confirm_song_key}")
-                    confirmation_key_pressed = waitForKey(confirm_song_key, 5000) 
+                    print(f"Waiting for confirmation : you have 3 seconds to press {confirm_song_key}")
+                    confirmation_key_pressed = waitForKey(confirm_song_key, 3000) 
                     if confirmation_key_pressed: # we simulate the song
                         try:
-                            simulateSong(identified_melody, song_to_key_dict)
+                            simulateSong(identified_melody_name, song_to_key_dict)
                         except:
-                            print(f"The song {identified_melody} can not be played")
+                            print(f"The song {identified_melody_name} can not be played")
                     else :
                         print("Time limit reached, song playing will be cancelled")
+                    # If a song is recognized we empty the buffer t ensure we don not detect several times the same melody
+                    audio_buffer_queue = []
                         
                     
-                if DEBUG:
+                if DEBUG and audio_buffer_queue:
+                    print(int(1000*np.max(audio_buffer_queue[0]))/1000)
                     update_plot(np.concatenate(audio_buffer_queue), SAMPLE_RATE, debug)
+                    
             computation_stop = time.time()
             
             computation_time_ms = int(1000*(computation_stop - computation_start))

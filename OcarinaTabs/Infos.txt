@@ -1,5 +1,0 @@
-I used https://panzi.github.io/ocarina_tabs/ to generate the tabs.
-We can export image (12_hole_ocarina_tabs.png) or pdf (OcarinaMelodiesTabs) from the web page. Image is low quality and pdf is vectorized.
-I need to modify the pdf to add the name of each melody, because I did not managed to add text in the tabs at each row in the editor.
-I took a screenshot of the pdf (I put my screen verticaly to increase resolution 😅) and edited it with paint.net.
-If you want to modify my tabs in the editor, simply import 12_hole_ocarina_tabs.txt in the web page.

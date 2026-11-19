@@ -8,7 +8,7 @@ The idea is that you launch Zelda OOT on your favourite emulator and simultaneou
 I want to precise that AI help me, but only online chatbot for hints or for small parts of function. No agent or code assistant like codex or Claude code have been used, every single step and decision come from my mind. I coded for the pleasure of solving a problem, with the help of chatbot but I didn't watched an agent produce AI slop to fill my GitHub with another Repository.
 
 # Tutorial
-## Run the process
+## Run the python files
 
 ## Ocarina Tabs
 I have not found an image with all the 12 ocarina melodies from Zelda Ocarina of Time, I have found some vibe coded website with some melodies well organized but never all 12 at the same place.
@@ -16,7 +16,7 @@ So I decided to create my own sheet, you can find it at this path `OcarinaTabs/T
 Here is the ocarina cheat sheet :
 
 <p align="center">
-  <img src="./OcarinaTabs/The Legend of Zelda Ocarina of Time - Ocarina Melodies.jpg" alt="Description" width="600">
+  <img src="./Tuto/The Legend of Zelda Ocarina of Time - Ocarina Melodies.jpg" alt="Description" width="600">
   <br>
   <em>Figure : Tabs for the 12 ocarina melodies from Zelda Ocarina of Time.</em>
 </p>
@@ -25,7 +25,82 @@ Here is the ocarina cheat sheet :
 TODO
 
 ## Input configuration
-TODO
+
+Simulating inputs is a little tricky, especially when using a controller. This project uses [PyAutoGUI](https://pyautogui.readthedocs.io/) to simulate keyboard presses. This approach is simple and cross-platform, and works directly with most emulators.
+
+There are two possible configurations:
+
+### Using a keyboard
+
+If you play using a keyboard, no additional script is required.
+
+The project maps N64 buttons to keyboard keys through `keyConfiguration.json`. You simply need to configure your emulator so that each N64 button is associated with the corresponding keyboard key.
+
+The default mapping is:
+
+| N64 button | 3DS button | Default keyboard key |
+| :--------: | :--------: | :------------------: |
+|      A     |      L     |          `a`         |
+|    C-Up    |      A     |          `x`         |
+|   C-Right  |      Y     |          `b`         |
+|   C-Down   |      R     |          `e`         |
+|   C-Left   |      X     |          `v`         |
+
+*Default mapping between N64 buttons, 3DS buttons and keyboard keys.*
+
+You can customize these keys by editing `keyConfiguration.json`. If you do so, remember to update your emulator's input configuration accordingly.
+
+The JSON file defines the mapping between N64 buttons and keyboard keys. If you are using a 3DS emulator such as Citra, use the table above to identify the corresponding 3DS buttons.
+
+### Using an Xbox controller with Citra
+
+If you prefer using an Xbox controller, you can keep the regular controller configuration in Citra and run the additional script:
+
+```bash
+python xboxToCitraSynthInput.py
+```
+
+This script runs in the background and listens for five specific Xbox controller inputs:
+
+- A mapped to A(3DS)
+- X mapped to Y(3DS)
+- Y mapped to X(3DS)
+- LT (Left Trigger) mapped to L(3DS)
+- RT (Right Trigger) mapped to R(3DS)
+
+Whenever one of these buttons is pressed, the script translates it into the corresponding keyboard key and sends that key to Citra using PyAutoGUI.
+
+The default configuration is illustrated below:
+
+<p align="center">   
+  <img src="./Tuto/CitraInputConfigurationLabelled.png" alt="Citra Xbox controller input configuration" width="600">   
+  <br>   
+  <em>Figure: Xbox controller configuration in Citra.\</em> 
+</p>
+
+There is no need to emulate the entire controller. The script only handles the five buttons used to play the Ocarina. The analog sticks, D-pad and other controls can still be handled directly by Citra.
+
+This is actually preferable: analog sticks provide continuous analog input, whereas Ocarina notes are discrete button presses. There is no benefit in routing analog controls through a keyboard-emulation layer.
+
+**Customizing the Xbox mapping**
+
+If you want to change which Xbox buttons trigger Ocarina notes, edit `xboxToCitraSynthInput.py`.
+
+If you also want to change the intermediary keyboard keys, you must update both:
+
+1. `xboxToCitraSynthInput.py`
+2. `keyConfiguration.json`
+
+Make sure that Citra is configured to associate those keyboard keys with the correct buttons.
+
+**Important:** Keep Citra focused while using PyAutoGUI, since simulated keyboard events are sent to the active window. Also make sure the five physical controller buttons used by the script are not independently bound to conflicting Ocarina inputs in Citra.
+
+### Other emulators
+
+Currently, the Xbox controller bridge is implemented specifically for Citra.
+
+A `xboxToProject64SynthInput.py` script would be needed to support the same controller workflow with Project64.
+
 
 ## Research and development
 ### Algorithm sketching

@@ -10,6 +10,19 @@ from utils.sequenceMatchMetric import match_sequence #(measured, target, loss="m
 
 CONST_DETECTION_THRESHOLD = 2
 
+SING_ERROR_SCALER = {'Zelda Lullaby': 1,
+   'Epona Song': 1.5,
+   'Saria Song': 2,
+   'Sun Song': 1.5,
+   'Song of Time': 1,
+   'Song of Storms': 2,
+   'Minuet of Forest': 2,
+   'Bolero of Fire': 1,
+   'Serenade of Water': 1,
+   'Nocturne of Shadow': 1,
+   'Requiem of Spirit': 1,
+   'Prelude of Light': 1} # some song are easier to whistle and to detect, to counter this we will scale the error for hard melody to avoir an over-detection of easy melodies
+
 song_dict_note_midi_diff_local = songDictionaries.song_dict_note_midi_diff
 
 def test_song(file: str,
@@ -25,7 +38,7 @@ def test_song(file: str,
     for key, value in song_midi_diff_dictionnary.items():
         currentError = match_sequence(
             array_diff_est, value
-        )
+        )/SING_ERROR_SCALER[key]
         errors.append((key, currentError))
 
     minErrorSong, minErrorValue = min(errors, key=lambda x: x[1])
